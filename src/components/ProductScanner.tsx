@@ -46,6 +46,19 @@ export default function ProductScanner() {
   const scanTimeoutRef = useRef<number | null>(null);
   const { toast } = useToast();
 
+  // Catálogo mínimo de reglas por SKU (mock)
+  const catalogRulesBySku: Record<string, { priceRules: { from: number; to: number; price: number }[] }> = {
+    'AOL-500': { priceRules: [ { from: 1, to: 9, price: 8.50 }, { from: 10, to: 49, price: 7.80 }, { from: 50, to: 999, price: 7.20 } ] },
+    'ARR-1000': { priceRules: [ { from: 1, to: 19, price: 3.20 }, { from: 20, to: 99, price: 2.90 } ] },
+    'PAS-500': { priceRules: [ { from: 1, to: 9, price: 2.90 }, { from: 10, to: 49, price: 2.60 } ] },
+  };
+
+  const getConfidenceThreshold = () => {
+    const v = localStorage.getItem('scanix_conf_threshold');
+    const n = v ? parseInt(v) : 60;
+    return isNaN(n) ? 60 : n;
+  };
+
   // Mock detected products for demo
   const mockProducts: DetectedProduct[] = [
     {
@@ -118,14 +131,28 @@ export default function ProductScanner() {
 
     // Simulate AI processing with delay
     scanTimeoutRef.current = window.setTimeout(() => {
-      setDetectedProducts(mockProducts);
+      const merged = mergeBySku(mockProducts);
+      setDetectedProducts(merged);
       setIsScanning(false);
       scanTimeoutRef.current = null;
       toast({
         title: "Escaneo completado",
-        description: `Se detectaron ${mockProducts.length} productos`,
+        description: `Se detectaron ${merged.length} productos`,
       });
     }, 3000);
+  };
+
+  const mergeBySku = (items: DetectedProduct[]) => {
+    const map = new Map<string, DetectedProduct>();
+    for (const p of items) {
+      const existing = map.get(p.sku);
+      if (existing) {
+        map.set(p.sku, { ...existing, quantity: existing.quantity + p.quantity, confidence: Math.max(existing.confidence, p.confidence) });
+      } else {
+        map.set(p.sku, { ...p });
+      }
+    }
+    return Array.from(map.values());
   };
 
   // Inicia la cámara para escritorio
@@ -257,8 +284,9 @@ export default function ProductScanner() {
       return;
     }
 
-    // Verificar si hay productos con baja confianza
-    const lowConfidenceProducts = detectedProducts.filter(p => p.confidence < 60);
+    // Verificar si hay productos con baja confianza (umbral configurable)
+    const threshold = getConfidenceThreshold();
+    const lowConfidenceProducts = detectedProducts.filter(p => p.confidence < threshold);
     if (lowConfidenceProducts.length > 0) {
       toast({
         title: "Productos requieren confirmación",
@@ -440,7 +468,7 @@ export default function ProductScanner() {
                           <span className="text-xs text-muted-foreground">
                             Confianza: {product.confidence}%
                           </span>
-                          {product.confidence < 60 && (
+                          {product.confidence < getConfidenceThreshold() && (
                             <Badge variant="destructive" className="text-xs">
                               Requiere confirmación
                             </Badge>
@@ -524,12 +552,14 @@ export default function ProductScanner() {
       <TicketModal
         isOpen={isTicketModalOpen}
         onClose={() => setIsTicketModalOpen(false)}
+        photo={selectedImage}
         products={detectedProducts.map(p => ({
           id: p.id,
           name: p.name,
           sku: p.sku,
           quantity: p.quantity,
-          price: p.price
+          price: p.price,
+          priceRules: catalogRulesBySku[p.sku]?.priceRules
         }))}
         onTicketGenerated={handleOrderGenerated}
       />

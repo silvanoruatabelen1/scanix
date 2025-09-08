@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 export default function Settings() {
   const { toast } = useToast();
@@ -16,6 +16,19 @@ export default function Settings() {
   const [notifications, setNotifications] = useState(true);
   const [theme, setTheme] = useState("system");
 
+  const [confidenceThreshold, setConfidenceThreshold] = useState<number>(60);
+
+  useEffect(() => {
+    const saved = localStorage.getItem('scanix_conf_threshold');
+    if (saved) {
+      const n = parseInt(saved);
+      if (!isNaN(n)) setConfidenceThreshold(n);
+    }
+  }, []);
+  const onSaveSettings = () => {
+    localStorage.setItem('scanix_conf_threshold', String(confidenceThreshold));
+    handleSave();
+  };
   const handleSave = () => {
     toast({
       title: "ConfiguraciÃ³n guardada",
@@ -85,6 +98,18 @@ export default function Settings() {
                   </SelectContent>
                 </Select>
               </div>
+              
+              <div className="space-y-2">
+                <Label>Umbral de confianza (%)</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  max={100}
+                  value={confidenceThreshold}
+                  onChange={(e) => setConfidenceThreshold(Math.max(0, Math.min(100, parseInt(e.target.value || "0"))))}
+                />
+                <p className="text-xs text-muted-foreground">Debajo de este valor, se pedirá confirmación manual.</p>
+              </div>
             </CardContent>
           </Card>
 
@@ -101,7 +126,7 @@ export default function Settings() {
                 </div>
                 <Switch checked={notifications} onCheckedChange={setNotifications} />
               </div>
-              <Button className="mt-2" onClick={handleSave}>Guardar cambios</Button>
+              <Button className="mt-2" onClick={onSaveSettings}>Guardar cambios</Button>
             </CardContent>
           </Card>
         </div>
@@ -109,4 +134,3 @@ export default function Settings() {
     </Layout>
   );
 }
-

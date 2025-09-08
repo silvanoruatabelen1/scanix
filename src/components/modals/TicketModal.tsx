@@ -18,6 +18,8 @@ import {
   Warehouse
 } from "lucide-react";
 
+interface PriceRule { from: number; to: number; price: number }
+
 interface TicketModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -26,12 +28,14 @@ interface TicketModalProps {
     name: string;
     sku: string;
     quantity: number;
-    price: number;
+    price: number; // precio base
+    priceRules?: PriceRule[]; // opcional: reglas por cantidad
   }>;
+  photo?: string | null; // miniatura de la captura
   onTicketGenerated: () => void;
 }
 
-export default function TicketModal({ isOpen, onClose, products, onTicketGenerated }: TicketModalProps) {
+export default function TicketModal({ isOpen, onClose, products, photo, onTicketGenerated }: TicketModalProps) {
   const { toast } = useToast();
   const [ticketData, setTicketData] = useState({
     vendor: "Operario Demo",
@@ -58,7 +62,10 @@ export default function TicketModal({ isOpen, onClose, products, onTicketGenerat
   };
 
   const calculateTotal = () => {
-    return products.reduce((total, product) => total + (product.quantity * product.price), 0);
+    return products.reduce((total, product) => {
+      const unitPrice = getUnitPrice(product.quantity, product.price, product.priceRules);
+      return total + (product.quantity * unitPrice);
+    }, 0);
   };
 
   const handleConfirmSale = () => {
@@ -94,6 +101,12 @@ export default function TicketModal({ isOpen, onClose, products, onTicketGenerat
       title: "Enviando a impresora",
       description: "El ticket se está imprimiendo",
     });
+  };
+
+  const getUnitPrice = (qty: number, basePrice: number, rules?: PriceRule[]) => {
+    if (!rules || rules.length === 0) return basePrice;
+    const rule = rules.find(r => qty >= r.from && qty <= r.to);
+    return rule ? rule.price : basePrice;
   };
 
   const handleSendEmail = () => {
@@ -175,6 +188,12 @@ export default function TicketModal({ isOpen, onClose, products, onTicketGenerat
               </div>
             </div>
 
+            {photo && (
+              <div className="mb-3 flex justify-center">
+                <img src={photo} alt="Foto del escaneo" className="h-20 w-20 object-cover rounded border" />
+              </div>
+            )}
+
             <Separator className="my-3" />
 
             {/* Products */}
@@ -186,19 +205,26 @@ export default function TicketModal({ isOpen, onClose, products, onTicketGenerat
                 <span className="text-right">Total</span>
               </div>
               
-              {products.map((product) => (
-                <div key={product.id} className="space-y-1">
-                  <div className="text-xs truncate">{product.name}</div>
-                  <div className="grid grid-cols-4 gap-2 text-xs">
-                    <span className="text-muted-foreground">{product.sku}</span>
-                    <span className="text-center">{product.quantity}</span>
-                    <span className="text-right">${product.price.toFixed(2)}</span>
-                    <span className="text-right font-semibold">
-                      ${(product.quantity * product.price).toFixed(2)}
-                    </span>
+              {products.map((product) => {
+                const unit = getUnitPrice(product.quantity, product.price, product.priceRules);
+                const rule = product.priceRules?.find(r => product.quantity >= r.from && product.quantity <= r.to);
+                return (
+                  <div key={product.id} className="space-y-1">
+                    <div className="text-xs truncate">{product.name}</div>
+                    <div className="grid grid-cols-4 gap-2 text-xs">
+                      <span className="text-muted-foreground">{product.sku}</span>
+                      <span className="text-center">{product.quantity}</span>
+                      <span className="text-right">${unit.toFixed(2)}</span>
+                      <span className="text-right font-semibold">
+                        ${(product.quantity * unit).toFixed(2)}
+                      </span>
+                    </div>
+                    {rule && (
+                      <div className="text-[10px] text-muted-foreground">Regla aplicada: {rule.from}-{rule.to}</div>
+                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
 
             <Separator className="my-3" />
