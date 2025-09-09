@@ -46,15 +46,22 @@ export default function ProductScanner() {
   const scanTimeoutRef = useRef<number | null>(null);
   const { toast } = useToast();
 
-  // Catálogo mínimo de reglas por SKU (mock)
-  const catalogRulesBySku: Record<string, { priceRules: { from: number; to: number; price: number }[] }> = {
-    'AOL-500': { priceRules: [ { from: 1, to: 9, price: 8.50 }, { from: 10, to: 49, price: 7.80 }, { from: 50, to: 999, price: 7.20 } ] },
-    'ARR-1000': { priceRules: [ { from: 1, to: 19, price: 3.20 }, { from: 20, to: 99, price: 2.90 } ] },
-    'PAS-500': { priceRules: [ { from: 1, to: 9, price: 2.90 }, { from: 10, to: 49, price: 2.60 } ] },
+  // Precios por cantidad desde cat�logo
+  const getUnitPriceBySku = (qty: number, sku: string, fallback: number) => {
+    return (() => {
+      try {
+        const p = require("@/store/catalog");
+        const prod = p.findBySku ? p.findBySku(sku) : undefined;
+        if (!prod || !prod.priceRules?.length) return fallback;
+        const r = prod.priceRules.find((r: any) => qty >= r.from && qty <= r.to);
+        return r ? r.price : fallback;
+      } catch { return fallback; }
+    })();
   };
 
+
   const getConfidenceThreshold = () => {
-    const v = localStorage.getItem('scanix_conf_threshold');
+    const v = localStorage.getItem("scanix_conf_threshold");
     const n = v ? parseInt(v) : 60;
     return isNaN(n) ? 60 : n;
   };
@@ -269,9 +276,7 @@ export default function ProductScanner() {
   };
 
   const getTotalAmount = () => {
-    return detectedProducts.reduce((total, product) => 
-      total + (product.quantity * product.price), 0
-    ).toFixed(2);
+    return detectedProducts.reduce((total, product) => { const unit = getUnitPriceBySku(product.quantity, product.sku, product.price); return total + (product.quantity * unit); }, 0).toFixed(2);
   };
 
   const handleGenerateOrder = () => {
@@ -559,10 +564,12 @@ export default function ProductScanner() {
           sku: p.sku,
           quantity: p.quantity,
           price: p.price,
-          priceRules: catalogRulesBySku[p.sku]?.priceRules
+          priceRules: (require("@/store/catalog").findBySku(p.sku)?.priceRules)
         }))}
         onTicketGenerated={handleOrderGenerated}
       />
     </div>
   );
 }
+
+

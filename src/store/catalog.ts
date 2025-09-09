@@ -9,6 +9,7 @@ export interface CatalogProduct {
   price: number; // base price
   images: string[]; // data URLs o URLs
   priceRules: PriceRule[];
+  stock?: number; // opcional: para listado
 }
 
 const KEY = "scanix_catalog_v1";
@@ -32,6 +33,7 @@ function load(): CatalogProduct[] {
       description: "",
       tags: ["premium", "importado", "500ml"],
       price: 8.5,
+      stock: 45,
       images: ["/placeholder.svg"],
       priceRules: [
         { from: 1, to: 9, price: 8.5 },
@@ -47,6 +49,7 @@ function load(): CatalogProduct[] {
       description: "",
       tags: ["integral", "1kg", "saludable"],
       price: 3.2,
+      stock: 23,
       images: ["/placeholder.svg"],
       priceRules: [
         { from: 1, to: 19, price: 3.2 },
@@ -61,6 +64,7 @@ function load(): CatalogProduct[] {
       description: "",
       tags: ["italiana", "500g", "premium"],
       price: 2.9,
+      stock: 8,
       images: ["/placeholder.svg"],
       priceRules: [
         { from: 1, to: 9, price: 2.9 },
@@ -135,4 +139,3 @@ export function removeProduct(id: string) {
   const data = load().filter(p => p.id !== id);
   save(data);
 }
-
