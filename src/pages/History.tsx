@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Layout from "@/components/Layout";
 import SaleDetailsModal from "@/components/modals/SaleDetailsModal";
+import * as Tickets from "@/store/tickets";
 
 interface SaleRecord {
   id: string;
@@ -36,51 +37,18 @@ export default function History() {
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
   const { toast } = useToast();
 
-  // Mock data
-  const salesHistory: SaleRecord[] = [
-    {
-      id: "VTA-2024-001",
-      date: "2024-01-15",
-      time: "14:30",
-      vendor: "Operario Demo",
-      warehouse: "Depósito Central",
-      total: 45.60,
-      status: "confirmada",
-      products: 8,
-      image: "/placeholder.svg"
-    },
-    {
-      id: "VTA-2024-002", 
-      date: "2024-01-15",
-      time: "11:45",
-      vendor: "Operario Demo",
-      warehouse: "Depósito Central",
-      total: 23.40,
-      status: "pendiente",
-      products: 3
-    },
-    {
-      id: "VTA-2024-003",
-      date: "2024-01-14",
-      time: "16:20",
-      vendor: "Operario Demo", 
-      warehouse: "Depósito Central",
-      total: 67.80,
-      status: "confirmada",
-      products: 12,
-      image: "/placeholder.svg"
-    },
-    {
-      id: "VTA-2024-004",
-      date: "2024-01-14",
-      time: "09:15",
-      vendor: "María González",
-      warehouse: "Depósito Norte",
-      total: 89.20,
-      status: "anulada",
-      products: 5
-    }
-  ];
+    // Lectura desde Local Storage
+  const salesHistory: SaleRecord[] = Tickets.getAll().map(t => ({
+    id: t.id,
+    date: t.date,
+    time: t.time,
+    vendor: t.vendor,
+    warehouse: t.warehouse,
+    total: t.total,
+    status: t.status,
+    products: t.items.length,
+    image: t.photo || undefined,
+  }));
 
   const filteredSales = salesHistory.filter(sale => {
     const matchesSearch = sale.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -360,3 +328,5 @@ export default function History() {
     </Layout>
   );
 }
+
+

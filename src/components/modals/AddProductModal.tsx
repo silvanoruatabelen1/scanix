@@ -1,4 +1,5 @@
 import { useState } from "react";
+import * as CatalogStore from "@/store/catalog";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -133,6 +134,35 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
     onClose();
   };
 
+  const handleSubmitV2 = () => {
+    if (!formData.name || !formData.sku || !formData.category) {
+      toast({ title: "Campos requeridos", description: "Completa nombre, SKU y categoría", variant: "destructive" });
+      return;
+    }
+    const basePrice = parseFloat(formData.basePrice);
+    if (isNaN(basePrice) || basePrice <= 0) {
+      toast({ title: "Precio inválido", description: "Ingresa un precio base válido", variant: "destructive" });
+      return;
+    }
+    try {
+      CatalogStore.addProduct({
+        name: formData.name.trim(),
+        sku: formData.sku.trim(),
+        category: formData.category.trim(),
+        description: formData.description.trim(),
+        tags: formData.tags,
+        price: basePrice,
+        images,
+        priceRules: priceRules.map(r => ({ from: Number(r.from)||0, to: Number(r.to)||0, price: Number(r.price)||0 })),
+      });
+      toast({ title: "Producto agregado", description: `${formData.name} se agregó exitosamente` });
+      onProductAdded();
+      onClose();
+    } catch (e) {
+      const msg = (e as any)?.message || String(e);
+      toast({ title: "No se pudo guardar", description: msg, variant: "destructive" });
+    }
+  };
   const resetForm = () => {
     setFormData({
       name: "",
@@ -362,7 +392,7 @@ export default function AddProductModal({ isOpen, onClose, onProductAdded }: Add
             <Button variant="outline" onClick={handleClose} className="flex-1">
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} className="flex-1">
+            <Button onClick={handleSubmitV2} className="flex-1">
               Guardar Producto
             </Button>
           </div>

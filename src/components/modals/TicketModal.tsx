@@ -17,6 +17,7 @@ import {
   Calendar,
   Warehouse
 } from "lucide-react";
+import { add as addTicket } from "@/store/tickets";
 
 interface PriceRule { from: number; to: number; price: number }
 
@@ -107,6 +108,41 @@ export default function TicketModal({ isOpen, onClose, products, photo, onTicket
     if (!rules || rules.length === 0) return basePrice;
     const rule = rules.find(r => qty >= r.from && qty <= r.to);
     return rule ? rule.price : basePrice;
+  };
+
+  // Nueva confirmación: persiste ticket en Local Storage
+  const handleConfirmSalePersist = () => {
+    const ticketId = generateTicketId();
+    const items = products.map((p) => {
+      const unit = getUnitPrice(p.quantity, p.price, p.priceRules);
+      const rule = p.priceRules?.find(r => p.quantity >= r.from && p.quantity <= r.to) || null;
+      return {
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        quantity: p.quantity,
+        unitPrice: unit,
+        ruleApplied: rule ? { from: rule.from, to: rule.to } : null,
+        subtotal: +(p.quantity * unit).toFixed(2),
+      };
+    });
+
+    const now = new Date();
+    addTicket({
+      id: ticketId,
+      date: now.toISOString().slice(0,10),
+      time: now.toTimeString().slice(0,5),
+      vendor: ticketData.vendor,
+      warehouse: ticketData.warehouse,
+      total: +calculateTotal().toFixed(2),
+      status: "confirmada",
+      items,
+      photo: photo,
+    });
+
+    toast({ title: "Venta confirmada", description: `Ticket ${ticketId} generado exitosamente` });
+    onTicketGenerated();
+    onClose();
   };
 
   const handleSendEmail = () => {
@@ -282,7 +318,7 @@ export default function TicketModal({ isOpen, onClose, products, photo, onTicket
               <Button variant="outline" onClick={onClose} className="flex-1">
                 Cancelar
               </Button>
-              <Button onClick={handleConfirmSale} className="flex-1 gap-2">
+              <Button onClick={handleConfirmSalePersist} className="flex-1 gap-2">
                 <Check className="h-4 w-4" />
                 Confirmar Venta
               </Button>
