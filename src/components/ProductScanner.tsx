@@ -1,10 +1,11 @@
-import { useEffect, useState, useRef } from "react";
+﻿import { useEffect, useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import * as CatalogStore from "@/store/catalog";
 import { 
   Camera, 
   Upload, 
@@ -45,8 +46,10 @@ export default function ProductScanner() {
   const streamRef = useRef<MediaStream | null>(null);
   const scanTimeoutRef = useRef<number | null>(null);
   const { toast } = useToast();
+  const [isAddFromCatalogOpen, setIsAddFromCatalogOpen] = useState(false);
+  const [catalogQuery, setCatalogQuery] = useState("");
 
-  // Precios por cantidad desde cat�logo
+  // Precios por cantidad desde cat�logo
   const getUnitPriceBySku = (qty: number, sku: string, fallback: number) => {
     return (() => {
       try {
@@ -247,6 +250,21 @@ export default function ProductScanner() {
     openCameraByDevice();
   };
 
+  const addFromCatalog = (sku: string) => {
+    try {
+      const p = CatalogStore.findBySku(sku);
+      if (!p) return;
+      const image = (p.images && p.images[0]) || "/placeholder.svg";
+      setDetectedProducts(prev => (
+        mergeBySku([
+          ...prev,
+          { id: p.id, name: p.name, sku: p.sku, quantity: 1, confidence: 100, image, price: p.price }
+        ])
+      ));
+      setIsAddFromCatalogOpen(false);
+    } catch (e) { console.error(e); }
+  };
+
   const updateQuantity = (productId: string, change: number) => {
     setDetectedProducts(products =>
       products.map(product =>
@@ -348,7 +366,7 @@ export default function ProductScanner() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <Button
               size="lg"
               className="h-24 flex-col gap-2"
@@ -368,6 +386,17 @@ export default function ProductScanner() {
             >
               <Upload className="h-8 w-8" />
               Subir Archivo
+            </Button>
+
+            <Button
+              variant="outline"
+              size="lg"
+              className="h-24 flex-col gap-2"
+              onClick={() => setIsAddFromCatalogOpen(true)}
+              disabled={isScanning}
+            >
+              <Plus className="h-8 w-8" />
+              Agregar desde Catálogo
             </Button>
           </div>
 
@@ -528,6 +557,39 @@ export default function ProductScanner() {
       )}
 
       {/* Modals */}
+      {/* Agregar desde catálogo */}
+      <Dialog open={isAddFromCatalogOpen} onOpenChange={setIsAddFromCatalogOpen}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>Agregar desde catálogo</DialogTitle>
+            <DialogDescription>Busca por nombre o SKU</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <input
+              className="w-full px-3 py-2 border rounded-md bg-background"
+              placeholder="Buscar por nombre o SKU..."
+              value={catalogQuery}
+              onChange={(e) => setCatalogQuery(e.target.value)}
+            />
+            <div className="max-h-64 overflow-y-auto space-y-2">
+              {require("@/store/catalog").getAll()
+                .filter((p: any) =>
+                  p.name.toLowerCase().includes(catalogQuery.toLowerCase()) ||
+                  p.sku.toLowerCase().includes(catalogQuery.toLowerCase())
+                )
+                .map((p: any) => (
+                  <div key={p.id} className="flex items-center justify-between p-2 border rounded-md">
+                    <div className="text-sm">
+                      <div className="font-medium">{p.name}</div>
+                      <div className="text-muted-foreground">{p.sku}</div>
+                    </div>
+                    <Button size="sm" onClick={() => addFromCatalog(p.sku)}>Agregar</Button>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
       {/* Modal de cámara para escritorio */}
       <Dialog open={isCameraModalOpen} onOpenChange={setIsCameraModalOpen}>
         <DialogContent className="max-w-2xl">
@@ -571,5 +633,6 @@ export default function ProductScanner() {
     </div>
   );
 }
+
 
 

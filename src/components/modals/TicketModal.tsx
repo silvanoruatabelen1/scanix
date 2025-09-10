@@ -18,6 +18,7 @@ import {
   Warehouse
 } from "lucide-react";
 import { add as addTicket } from "@/store/tickets";
+import { hasApi, apiPost } from "@/lib/api";
 
 interface PriceRule { from: number; to: number; price: number }
 
@@ -110,7 +111,7 @@ export default function TicketModal({ isOpen, onClose, products, photo, onTicket
     return rule ? rule.price : basePrice;
   };
 
-  // Nueva confirmación: persiste ticket en Local Storage
+  // Nueva confirmación: si hay API, enviar y actualizar stock; sino Local Storage
   const handleConfirmSalePersist = () => {
     const ticketId = generateTicketId();
     const items = products.map((p) => {
@@ -128,7 +129,7 @@ export default function TicketModal({ isOpen, onClose, products, photo, onTicket
     });
 
     const now = new Date();
-    addTicket({
+    const record = {
       id: ticketId,
       date: now.toISOString().slice(0,10),
       time: now.toTimeString().slice(0,5),
@@ -138,11 +139,32 @@ export default function TicketModal({ isOpen, onClose, products, photo, onTicket
       status: "confirmada",
       items,
       photo: photo,
-    });
+    } as any;
 
-    toast({ title: "Venta confirmada", description: `Ticket ${ticketId} generado exitosamente` });
-    onTicketGenerated();
-    onClose();
+    const postToApi = async () => {
+      try {
+        await apiPost("/api/tickets", {
+          id: record.id,
+          vendor: record.vendor,
+          warehouse: record.warehouse, // acepta id o nombre en server-lite
+          photo: record.photo,
+          items: items.map((i:any)=>({ sku: i.sku, quantity: i.quantity, unitPrice: i.unitPrice }))
+        });
+        return true;
+      } catch (e:any) {
+        toast({ title: "No se pudo confirmar", description: typeof e === 'string' ? e : 'Error en el servidor', variant: "destructive" });
+        return false;
+      }
+    };
+
+    const go = async () => {
+      if (hasApi() && !(await postToApi())) return;
+      try { addTicket(record); } catch {}
+      toast({ title: "Venta confirmada", description: `Ticket ${ticketId} generado exitosamente` });
+      onTicketGenerated();
+      onClose();
+    };
+    void go();
   };
 
   const handleSendEmail = () => {

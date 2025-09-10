@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String
+  role      String   @default("OPERARIO")
+  createdAt DateTime @default(now())
+}
+
+model Warehouse {
+  id   String @id @default(cuid())
+  name String @unique
+  stocks StockLevel[]
+}
+
+model Product {
+  id         String       @id @default(cuid())
+  name       String
+  sku        String       @unique
+  category   String
+  description String?
+  basePrice  Float
+  images     ProductImage[]
+  priceRules PriceRule[]
+  stocks     StockLevel[]
+  createdAt  DateTime @default(now())
+}
+
+model ProductImage {
+  id        String  @id @default(cuid())
+  url       String
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+}
+
+model PriceRule {
+  id        String  @id @default(cuid())
+  fromQty   Int
+  toQty     Int
+  price     Float
+  product   Product @relation(fields: [productId], references: [id])
+  productId String
+}
+
+model StockLevel {
+  id          String     @id @default(cuid())
+  quantity    Int        @default(0)
+  product     Product    @relation(fields: [productId], references: [id])
+  productId   String
+  warehouse   Warehouse  @relation(fields: [warehouseId], references: [id])
+  warehouseId String
+  @@unique([productId, warehouseId])
+}
+
+model Ticket {
+  id         String      @id
+  date       String
+  time       String
+  vendor     String
+  warehouse  String
+  total      Float
+  status     String
+  photo      String?
+  items      TicketItem[]
+  createdAt  DateTime @default(now())
+}
+
+model TicketItem {
+  id        String  @id @default(cuid())
+  name      String
+  sku       String
+  quantity  Int
+  unitPrice Float
+  subtotal  Float
+  ticket    Ticket @relation(fields: [ticketId], references: [id])
+  ticketId  String
+}

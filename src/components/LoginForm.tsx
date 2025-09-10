@@ -32,6 +32,22 @@ export default function LoginForm() {
     setIsLoading(true);
     setError("");
 
+    // Intento de login contra API si está configurada
+    try {
+      const { hasApi, apiPost } = await import("@/lib/api");
+      if (hasApi && hasApi()) {
+        const res: any = await apiPost("/api/auth/login", { email: username, password });
+        localStorage.setItem("scanix_user", JSON.stringify(res.user));
+        localStorage.setItem("scanix_token", res.token);
+        toast({ title: "Inicio de sesión exitoso", description: `Bienvenido, ${res.user?.name || username}` });
+        navigate("/");
+        setIsLoading(false);
+        return;
+      }
+    } catch (err) {
+      // Si falla la API, continúa con mock
+    }
+
     // Simulate API call
     setTimeout(() => {
       // Mock authentication - accept any username with password "scanix123"
